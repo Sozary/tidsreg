@@ -1,0 +1,274 @@
+openapi: 3.1.0
+info:
+  title: Tidsreg API
+  description: API pour interagir avec le système Tidsreg de gestion du temps
+  version: 1.0.0
+servers:
+  - url: https://your-url-here.loca.lt
+    description: Serveur de développement (remplacez par votre URL localtunnel ou serveur cloud)
+
+paths:
+  /api/login:
+    post:
+      operationId: login
+      summary: Authentification avec Tidsreg
+      description: Authentifie l'utilisateur et crée une session. Doit être appelé avant toute autre requête.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Nom d'utilisateur Tidsreg
+                password:
+                  type: string
+                  description: Mot de passe Tidsreg
+      responses:
+        '200':
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '401':
+          description: Échec de l'authentification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/customers:
+    get:
+      operationId: listCustomers
+      summary: Liste tous les clients disponibles
+      description: Récupère la liste de tous les clients Tidsreg
+      responses:
+        '200':
+          description: Liste des clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: ID du client
+                    name:
+                      type: string
+                      description: Nom du client
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/projects:
+    get:
+      operationId: listProjects
+      summary: Liste les projets pour un client
+      description: Récupère tous les projets associés à un client spécifique
+      parameters:
+        - name: customerId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID du client
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date au format YYYY-MM-DD
+      responses:
+        '200':
+          description: Liste des projets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: ID du projet
+                    name:
+                      type: string
+                      description: Nom du projet
+        '400':
+          description: Paramètres manquants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/phases:
+    get:
+      operationId: listPhases
+      summary: Liste les phases pour un projet
+      description: Récupère toutes les phases d'un projet spécifique
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID du projet
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date au format YYYY-MM-DD
+      responses:
+        '200':
+          description: Liste des phases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: ID de la phase
+                    name:
+                      type: string
+                      description: Nom de la phase
+        '400':
+          description: Paramètres manquants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/activities:
+    get:
+      operationId: listActivities
+      summary: Liste les activités pour une phase
+      description: Récupère toutes les activités d'une phase spécifique
+      parameters:
+        - name: phaseId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: ID de la phase
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date au format YYYY-MM-DD
+      responses:
+        '200':
+          description: Liste des activités
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: ID de l'activité
+                    name:
+                      type: string
+                      description: Nom de l'activité
+        '400':
+          description: Paramètres manquants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/kinds:
+    get:
+      operationId: listKinds
+      summary: Liste les types pour un projet et une activité
+      description: Récupère les types disponibles pour une combinaison projet/activité
+      parameters:
+        - name: projectName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Nom du projet
+        - name: activityName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Nom de l'activité
+      responses:
+        '200':
+          description: Liste des types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: ID du type
+                    name:
+                      type: string
+                      description: Nom du type
+        '400':
+          description: Paramètres manquants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Vérification de l'état du serveur
+      description: Vérifie si le serveur est opérationnel et si l'utilisateur est authentifié
+      responses:
+        '200':
+          description: État du serveur
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: État du serveur
+                  authenticated:
+                    type: boolean
+                    description: Si l'utilisateur est authentifié
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Message d'erreur
+        status:
+          type: integer
+          description: Code de statut HTTP

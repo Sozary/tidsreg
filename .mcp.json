@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tidsreg": {
+      "command": "/Users/sozary/Documents/Me/Code/tidsreg/env/bin/python",
+      "args": ["/Users/sozary/Documents/Me/Code/tidsreg/server.py"]
+    }
+  }
+}
