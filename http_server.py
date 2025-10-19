@@ -70,10 +70,12 @@ def list_customers():
     """
     List all available customers.
 
-    No parameters required.
+    Query parameters:
+    - date: Date in format YYYY-MM-DD (optional)
     """
     try:
-        result = client.list_customers()
+        date = request.args.get('date')
+        result = client.list_customers(date=date)
 
         if 'error' in result:
             status_code = result.get('status', 500)
@@ -214,6 +216,105 @@ def list_kinds():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/navigate', methods=['POST'])
+def navigate_to_date():
+    """
+    Navigate to a specific date in Tidsreg.
+
+    Request body:
+    {
+        "date": "YYYY-MM-DD"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data or 'date' not in data:
+            return jsonify({"error": "Missing date parameter"}), 400
+
+        result = client.navigate_to_date(date=data['date'])
+
+        if 'error' in result:
+            status_code = result.get('status', 500)
+            return jsonify(result), status_code
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.exception("Navigate to date error")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/week', methods=['GET', 'POST'])
+def week_operations():
+    """
+    Get week dates or navigate to a specific week.
+
+    GET query parameters (all optional):
+    - year: Year (defaults to current year)
+    - week: ISO week number (defaults to current week)
+    - navigate: Set to 'true' to navigate to the week
+
+    POST body (all optional):
+    {
+        "year": integer,
+        "week": integer,
+        "navigate": boolean
+    }
+    """
+    try:
+        if request.method == 'GET':
+            year = request.args.get('year', type=int)
+            week = request.args.get('week', type=int)
+            navigate = request.args.get('navigate', 'false').lower() == 'true'
+        else:
+            data = request.get_json() or {}
+            year = data.get('year')
+            week = data.get('week')
+            navigate = data.get('navigate', False)
+
+        if navigate:
+            result = client.navigate_to_week(year=year, week=week)
+        else:
+            result = client.get_week_dates(year=year, week=week)
+
+        if 'error' in result:
+            status_code = result.get('status', 500)
+            return jsonify(result), status_code
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.exception("Week operations error")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/hours', methods=['GET'])
+def get_registered_hours():
+    """
+    Retrieve registered hours for a specific date/week.
+
+    Query parameters:
+    - date: Date in format YYYY-MM-DD (required)
+    """
+    try:
+        date = request.args.get('date')
+
+        if not date:
+            return jsonify({"error": "Missing date parameter"}), 400
+
+        result = client.get_registered_hours(date=date)
+
+        if 'error' in result:
+            status_code = result.get('status', 500)
+            return jsonify(result), status_code
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.exception("Get registered hours error")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/tools', methods=['GET'])
 def list_tools():
     """
@@ -234,7 +335,39 @@ def list_tools():
             "name": "list_customers",
             "method": "GET",
             "endpoint": "/api/customers",
-            "description": "List all available customers"
+            "description": "List all available customers",
+            "params": {
+                "date": "YYYY-MM-DD (optional)"
+            }
+        },
+        {
+            "name": "navigate_to_date",
+            "method": "POST",
+            "endpoint": "/api/navigate",
+            "description": "Navigate to a specific date",
+            "body": {
+                "date": "YYYY-MM-DD"
+            }
+        },
+        {
+            "name": "week_operations",
+            "method": "GET/POST",
+            "endpoint": "/api/week",
+            "description": "Get week dates or navigate to a specific week",
+            "params": {
+                "year": "integer (optional)",
+                "week": "integer (optional)",
+                "navigate": "boolean (optional)"
+            }
+        },
+        {
+            "name": "get_registered_hours",
+            "method": "GET",
+            "endpoint": "/api/hours",
+            "description": "Retrieve registered hours for a specific date/week",
+            "params": {
+                "date": "YYYY-MM-DD"
+            }
         },
         {
             "name": "list_projects",
@@ -299,6 +432,10 @@ if __name__ == '__main__':
     logger.info("Available endpoints:")
     logger.info("  POST /api/login")
     logger.info("  GET  /api/customers")
+    logger.info("  POST /api/navigate")
+    logger.info("  GET  /api/week")
+    logger.info("  POST /api/week")
+    logger.info("  GET  /api/hours")
     logger.info("  GET  /api/projects")
     logger.info("  GET  /api/phases")
     logger.info("  GET  /api/activities")

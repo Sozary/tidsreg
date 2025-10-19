@@ -1,0 +1,669 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tidsreg API",
+    "description": "API pour interagir avec le système de time registration Tidsreg. Permet de naviguer, consulter et gérer les heures enregistrées.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Serveur local (à remplacer par l'URL de localtunnel ou ngrok)"
+    }
+  ],
+  "paths": {
+    "/api/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Authentification à Tidsreg",
+        "description": "S'authentifier avec username et password pour démarrer une session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "Nom d'utilisateur Tidsreg"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Mot de passe Tidsreg"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentification réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hours": {
+      "get": {
+        "operationId": "getRegisteredHours",
+        "summary": "Récupérer TOUTES les heures en un appel",
+        "description": "Parse le HTML Tidsreg et retourne TOUTES les heures (clients/projets/activités) déjà structurées. Utilise DIRECTEMENT cette fonction - pas besoin de listCustomers/listProjects/etc. Les données sont extraites et formatées automatiquement.",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2025-01-15"
+            },
+            "description": "Date au format YYYY-MM-DD (n'importe quel jour de la semaine - retourne toute la semaine)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Heures parsées et structurées avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Indicateur de succès"
+                    },
+                    "date": {
+                      "type": "string",
+                      "description": "Date demandée (YYYY-MM-DD)"
+                    },
+                    "date_formatted": {
+                      "type": "string",
+                      "description": "Date formatée (DD-MM-YYYY)"
+                    },
+                    "day_name": {
+                      "type": "string",
+                      "description": "Nom du jour (Lundi, Mardi, etc.)"
+                    },
+                    "day_index": {
+                      "type": "integer",
+                      "description": "Index du jour dans la semaine (0=Lundi, 6=Dimanche)"
+                    },
+                    "hours_for_day": {
+                      "type": "array",
+                      "description": "⭐ UTILISE CE CHAMP! Liste des activités avec heures pour la date spécifique uniquement (déjà filtrées)",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "activity": {
+                            "type": "string",
+                            "description": "Nom de l'activité (propre, sans markup)"
+                          },
+                          "hours": {
+                            "type": "string",
+                            "description": "Heures enregistrées pour CE jour précis"
+                          },
+                          "billable": {
+                            "type": "boolean",
+                            "description": "Si l'activité est facturable"
+                          },
+                          "week_total": {
+                            "type": "string",
+                            "description": "Total d'heures pour toute la semaine"
+                          }
+                        }
+                      }
+                    },
+                    "week_info": {
+                      "type": "object",
+                      "description": "Informations complètes sur la semaine",
+                      "properties": {
+                        "year": {
+                          "type": "integer",
+                          "description": "Année"
+                        },
+                        "week": {
+                          "type": "integer",
+                          "description": "Numéro de semaine ISO"
+                        },
+                        "start_date": {
+                          "type": "string",
+                          "description": "Date de début de semaine (YYYY-MM-DD)"
+                        },
+                        "end_date": {
+                          "type": "string",
+                          "description": "Date de fin de semaine (YYYY-MM-DD)"
+                        }
+                      }
+                    },
+                    "registrations": {
+                      "type": "array",
+                      "description": "TOUTES les heures enregistrées parsées du HTML - contient clients, projets, phases, activités et heures par jour",
+                      "items": {
+                        "type": "object",
+                        "description": "Une entrée d'heures avec contexte (client/projet/activité) et valeurs",
+                        "properties": {
+                          "level": {
+                            "type": "string",
+                            "description": "Niveau hiérarchique (groupLevel1=client, groupLevel2=projet, groupLevel3=phase, groupLevel4=activité)"
+                          },
+                          "data": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Données textuelles extraites (noms, descriptions)"
+                          },
+                          "hours": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Heures enregistrées par jour de la semaine"
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "Valeur d'heures si c'est un champ individuel"
+                          },
+                          "context": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Contexte hiérarchique (client > projet > phase > activité)"
+                          }
+                        }
+                      }
+                    },
+                    "totals": {
+                      "type": "object",
+                      "description": "Totaux par jour et globaux extraits du HTML",
+                      "additionalProperties": {
+                        "type": "string",
+                        "description": "Totaux d'heures par jour (mon_total, tue_total, etc.) et autres sommes"
+                      }
+                    },
+                    "raw_html_size": {
+                      "type": "integer",
+                      "description": "Taille du HTML parsé (pour debug)"
+                    }
+                  }
+                },
+                "examples": {
+                  "example1": {
+                    "value": {
+                      "ok": true,
+                      "date": "2025-10-01",
+                      "date_formatted": "01-10-2025",
+                      "day_name": "Mercredi",
+                      "day_index": 2,
+                      "hours_for_day": [
+                        {
+                          "activity": "Sygdom",
+                          "hours": "4,50",
+                          "billable": false,
+                          "week_total": "6,50"
+                        },
+                        {
+                          "activity": "Backend Service / API",
+                          "hours": "3,00",
+                          "billable": true,
+                          "week_total": "26,00"
+                        }
+                      ],
+                      "week_info": {
+                        "year": 2025,
+                        "week": 40,
+                        "start_date": "2025-09-29",
+                        "end_date": "2025-10-05"
+                      },
+                      "raw_html_size": 220836
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/navigate": {
+      "post": {
+        "operationId": "navigateToDate",
+        "summary": "Naviguer vers une date",
+        "description": "Navigue vers une date spécifique dans Tidsreg (comme changer de jour dans l'interface)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["date"],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2025-01-15",
+                    "description": "Date au format YYYY-MM-DD"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Navigation réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/week": {
+      "get": {
+        "operationId": "getWeekInfo",
+        "summary": "Obtenir les infos d'une semaine",
+        "description": "Calcule les dates de début et fin pour une semaine spécifique (par défaut: semaine courante)",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "example": 2025
+            },
+            "description": "Année (par défaut: année courante)"
+          },
+          {
+            "name": "week",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "example": 3
+            },
+            "description": "Numéro de semaine ISO (par défaut: semaine courante)"
+          },
+          {
+            "name": "navigate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": false
+            },
+            "description": "Si true, navigue vers la semaine"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Informations de la semaine",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "year": {
+                      "type": "integer"
+                    },
+                    "week": {
+                      "type": "integer"
+                    },
+                    "start_date": {
+                      "type": "string"
+                    },
+                    "end_date": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "navigateToWeek",
+        "summary": "Naviguer vers une semaine",
+        "description": "Navigue vers une semaine spécifique dans Tidsreg",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "year": {
+                    "type": "integer",
+                    "example": 2025,
+                    "description": "Année (par défaut: année courante)"
+                  },
+                  "week": {
+                    "type": "integer",
+                    "example": 3,
+                    "description": "Numéro de semaine ISO (par défaut: semaine courante)"
+                  },
+                  "navigate": {
+                    "type": "boolean",
+                    "example": true,
+                    "description": "Si true, navigue vers la semaine"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Navigation ou info réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Succès de l'opération"
+                    },
+                    "year": {
+                      "type": "integer",
+                      "description": "Année"
+                    },
+                    "week": {
+                      "type": "integer",
+                      "description": "Numéro de semaine"
+                    },
+                    "start_date": {
+                      "type": "string",
+                      "description": "Date de début"
+                    },
+                    "end_date": {
+                      "type": "string",
+                      "description": "Date de fin"
+                    },
+                    "week_info": {
+                      "type": "object",
+                      "description": "Infos complètes de la semaine"
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Message de confirmation"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers": {
+      "get": {
+        "operationId": "listCustomers",
+        "summary": "Lister les clients (exploration uniquement)",
+        "description": "Pour EXPLORER des clients disponibles seulement. Pour voir les HEURES, utilise getRegisteredHours() qui retourne déjà tout (clients/projets/heures). N'utilise cette fonction QUE si l'utilisateur cherche des clients.",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2025-01-15"
+            },
+            "description": "Date au format YYYY-MM-DD (optionnel)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des clients",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "operationId": "listProjects",
+        "summary": "Lister les projets (pour exploration uniquement)",
+        "description": "⚠️ Pour EXPLORER/CHERCHER des projets, pas pour afficher les heures! Pour voir les heures, utilise getRegisteredHours() qui retourne déjà tout.",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID du client"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2025-01-15"
+            },
+            "description": "Date au format YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des projets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/phases": {
+      "get": {
+        "operationId": "listPhases",
+        "summary": "Lister les phases (pour exploration uniquement)",
+        "description": "⚠️ Pour EXPLORER/CHERCHER des phases, pas pour afficher les heures! Pour voir les heures, utilise getRegisteredHours().",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID du projet"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2025-01-15"
+            },
+            "description": "Date au format YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des phases",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activities": {
+      "get": {
+        "operationId": "listActivities",
+        "summary": "Lister les activités (pour exploration uniquement)",
+        "description": "⚠️ Pour EXPLORER/CHERCHER des activités, pas pour afficher les heures! Pour voir les heures, utilise getRegisteredHours().",
+        "parameters": [
+          {
+            "name": "phaseId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID de la phase"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2025-01-15"
+            },
+            "description": "Date au format YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des activités",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/kinds": {
+      "get": {
+        "operationId": "listKinds",
+        "summary": "Lister les types (pour exploration uniquement)",
+        "description": "⚠️ Pour EXPLORER/CHERCHER des types d'activités disponibles, pas pour afficher les heures! Pour voir les heures, utilise getRegisteredHours().",
+        "parameters": [
+          {
+            "name": "projectName",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nom du projet"
+          },
+          {
+            "name": "activityName",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nom de l'activité"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Vérification de santé",
+        "description": "Vérifie que le serveur fonctionne et si l'utilisateur est authentifié",
+        "responses": {
+          "200": {
+            "description": "Statut du serveur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "authenticated": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

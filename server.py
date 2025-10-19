@@ -48,7 +48,60 @@ def get_tool_definitions() -> list:
             "description": "Retrieve the list of all available customers from Tidsreg",
             "inputSchema": {
                 "type": "object",
-                "properties": {}
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "Optional date in format YYYY-MM-DD. If provided, retrieves customers for that specific date."
+                    }
+                }
+            }
+        },
+        {
+            "name": "navigate_to_date",
+            "description": "Navigate to a specific date in Tidsreg to view time registrations",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "Date in format YYYY-MM-DD"
+                    }
+                },
+                "required": ["date"]
+            }
+        },
+        {
+            "name": "navigate_to_week",
+            "description": "Navigate to a specific week in Tidsreg. Defaults to current week if no parameters provided.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "year": {
+                        "type": "integer",
+                        "description": "Year (defaults to current year)"
+                    },
+                    "week": {
+                        "type": "integer",
+                        "description": "ISO week number (defaults to current week)"
+                    }
+                }
+            }
+        },
+        {
+            "name": "get_week_dates",
+            "description": "Get start and end dates for a specific week. Defaults to current week if no parameters provided.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "year": {
+                        "type": "integer",
+                        "description": "Year (defaults to current year)"
+                    },
+                    "week": {
+                        "type": "integer",
+                        "description": "ISO week number (defaults to current week)"
+                    }
+                }
             }
         },
         {
@@ -122,6 +175,20 @@ def get_tool_definitions() -> list:
                 },
                 "required": ["projectName", "activityName"]
             }
+        },
+        {
+            "name": "get_registered_hours",
+            "description": "Retrieve registered hours for a specific date/week by parsing the Hours page HTML",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "Date in format YYYY-MM-DD"
+                    }
+                },
+                "required": ["date"]
+            }
         }
     ]
 
@@ -187,8 +254,24 @@ def handle_tools_call(params: Dict[str, Any]) -> Dict[str, Any]:
                 username=arguments["username"],
                 password=arguments["password"]
             )
+        elif tool_name == "navigate_to_date":
+            result = client.navigate_to_date(
+                date=arguments["date"]
+            )
+        elif tool_name == "navigate_to_week":
+            result = client.navigate_to_week(
+                year=arguments.get("year"),
+                week=arguments.get("week")
+            )
+        elif tool_name == "get_week_dates":
+            result = client.get_week_dates(
+                year=arguments.get("year"),
+                week=arguments.get("week")
+            )
         elif tool_name == "list_customers":
-            result = client.list_customers()
+            result = client.list_customers(
+                date=arguments.get("date")
+            )
         elif tool_name == "list_projects":
             result = client.list_projects(
                 customerId=arguments["customerId"],
@@ -208,6 +291,10 @@ def handle_tools_call(params: Dict[str, Any]) -> Dict[str, Any]:
             result = client.list_kinds(
                 projectName=arguments["projectName"],
                 activityName=arguments["activityName"]
+            )
+        elif tool_name == "get_registered_hours":
+            result = client.get_registered_hours(
+                date=arguments["date"]
             )
         else:
             return {
